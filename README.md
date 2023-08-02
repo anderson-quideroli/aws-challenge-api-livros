@@ -17,7 +17,7 @@
 
 - [CI/CD](#cicd)
 
-- [Deploy local](#%EF%B8%8Fdeploy-local)
+- [Deploy local](#deploy-local)
 
 - [Deploy na AWS](#%EF%B8%8Fdeploy-na-aws)
  
