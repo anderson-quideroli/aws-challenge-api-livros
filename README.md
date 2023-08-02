@@ -126,6 +126,8 @@ terraform init
 terraform plan
 terraform apply
 ```
+Ao término do deploy o Terraform ira exibir o endereço da API via output.
+Ex.: api_livros_url =  "http://alb-app-ID-DA-CONTA.us-east-1.elb.amazonaws.com/livros"
 
 ## 👦Autor
 
