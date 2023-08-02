@@ -1,0 +1,6 @@
+services:
+  app:
+    image: api-livros:latest
+    restart: always
+    ports:
+      - "8080:8080"
