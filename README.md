@@ -91,6 +91,10 @@ A estrutura utilizada para o CD, foi gerado no mesmo pipeline, porém criado um 
 
 ## 💻Deploy Local
 
+
+Porta local: 8080/tcp
+
+
 1. Para efetuar o deploy local efetue o build da imagem docker:
 
 ```bash
@@ -103,7 +107,11 @@ docker build -t api-livros:latest .
 docker compose up -d
 ```
 
-3. Stop do ambiente:
+3. Acesso a API Livros:
+   
+http://localhost:8080/livros
+
+5. Stop do ambiente:
 
 ```bash
 docker compose down
