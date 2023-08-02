@@ -13,6 +13,8 @@
 
 - [Arquitetura](#arquitetura)
 
+- [Topologia](#topologia)
+
 - [CI/CD](#cicd)
 
 - [Deploy local](#%EF%B8%8Fdeploy-local)
@@ -72,6 +74,12 @@ A monitoração do Cluster ECS está sendo realizada pelo CloudWatch, onde monit
 As notificações dos alertas são enviadas por e-mail através do SNS, onde foi escritp dois e-mails no topico destinado para alertas do Cluster ECS.
 
 Quando o ambiente é iniciado pela primeira vez o Terraform efetua o primeiro build da imagem Docker e salva no ECR com a tag 1.0, no qual é declarada na estrutura da task o endereço do ECR com o nome e tag da imagem.
+
+## 📐Topologia
+
+<div allign="center">
+<img src="https://github.com/anderson-quideroli/aws-challenge-api-livros/assets/127318593/d8484871-325a-449d-a57a-8eba75a098fa.JPG" width="700px" />
+</div>
 
 ## 🧱CI/CD
 
