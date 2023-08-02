@@ -94,7 +94,7 @@ A estrutura utilizada para o CD, foi gerado no mesmo pipeline, porém criado um 
 1. Para efetuar o deploy local efetue o build da imagem docker:
 
 ```bash
-docker build -t api-livros:lastet .
+docker build -t api-livros:latest .
 ```
 
 2. Iniciar o ambiente:
