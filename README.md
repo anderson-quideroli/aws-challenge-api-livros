@@ -26,7 +26,7 @@
 
 ## 💽API Livros
 
-API Livros foi criada em Python 3.11 utilizando o framework de desenvolvimento web "Flask", no qual é possível efetuar ações utilizando métodos HTTP para consultar todos os livros, adição, remoção ou alteração de uma determinado livro.
+API Livros foi criada em Python 3.11 utilizando o framework de desenvolvimento web "Flask", no qual é possível efetuar ações utilizando métodos HTTP para consultar todos os livros, adição, remoção ou alteração de um determinado livro.
 
 A aplicação para esse projeto é conteinerizada e sua imagem é armazenada no Amazon Elastic Container Registry(ECR), onde é possível versionar a imagem docker, verificar vulnerabilidade, disponibilizar para recursos como ECS, funções lambdas ou para cluster EKS(Kubernetes).
 
