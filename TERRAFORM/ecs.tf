@@ -16,27 +16,51 @@ Essa tarefa busca a imagem do ECR da API Livros na versão 1.0.
 resource "aws_ecs_task_definition" "app_task" {
   family                   = "api-task"
   container_definitions    = <<DEFINITION
-  [
-    {
-      "name": "api-task",
-      "image": "${local.account_id}.dkr.ecr.${local.region_name}.amazonaws.com/api-livros:1.0",
-      "essential": true,
-      "portMappings": [
-        {
-          "containerPort": 8080,
-          "hostPort": 8080
-        }
-      ],
-      "memory": 512,
-      "cpu": 256
+[
+  {
+    "name": "api-task",
+    "image": "${local.account_id}.dkr.ecr.${local.region_name}.amazonaws.com/api-livros:1.0",
+    "essential": true,
+    "portMappings": [
+      {
+        "containerPort": 8080,
+        "hostPort": 8080
+      }
+    ],
+    "memory": 512,
+    "cpu": 256,
+    "environment": [
+      { "name": "DD_AGENT_HOST", "value": "localhost" },
+      { "name": "DD_ENV", "value": "dev" },
+      { "name": "DD_SERVICE", "value": "api-livros" },
+      { "name": "DD_VERSION", "value": "1.0" }
+    ]
+  },
+  {
+    "name": "datadog-agent",
+    "image": "public.ecr.aws/datadog/agent:latest",
+    "essential": false,
+    "environment": [
+      { "name": "DD_API_KEY", "value": "13e4da727ff42f591309b74191e5170a" },
+      { "name": "DD_SITE",    "value": "us5.datadoghq.com" },
+      { "name": "ECS_FARGATE", "value": "true" }
+    ],
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "/ecs/datadog-agent",
+        "awslogs-region": "${local.region_name}",
+        "awslogs-stream-prefix": "ecs"
+      }
     }
-  ]
-  DEFINITION
+  }
+]
+DEFINITION
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   memory                   = 512
   cpu                      = 256
-  execution_role_arn       = "arn:aws:iam::${local.account_id}:role/ecsTaskExecutionRole"
+  execution_role_arn       = aws_iam_role.iam_role_ecs_task_execution.arn
 }
 
 
