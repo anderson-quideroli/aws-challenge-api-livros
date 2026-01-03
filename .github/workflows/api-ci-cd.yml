@@ -14,6 +14,8 @@ env:
   CONTAINER_NAME: api-task
   ECS_CLUSTER: api-cluster
   ECS_SERVICE: api-service
+  CODEDEPLOY_APP: api-livros-codedeploy
+  CODEDEPLOY_GROUP: api-livros-deployment-group
 
 jobs:
   test:
@@ -41,7 +43,7 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     outputs:
-      image: ${{ steps.build-image.outputs.image }}
+      image_encrypted: ${{ steps.build-image.outputs.image_encrypted }}
     steps:
       - uses: actions/checkout@v3
 
@@ -61,10 +63,17 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
+          JOB_ID: ${{ github.run_number }}
+          SECRET: ${{ secrets.PGP_SECRET_SIGNING_PASSPHRASE }}
         run: |
           docker build -t $ECR_REGISTRY/${ECR_REPOSITORY}:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/${ECR_REPOSITORY}:$IMAGE_TAG $ECR_REGISTRY/${ECR_REPOSITORY}:$JOB_ID
           docker push $ECR_REGISTRY/${ECR_REPOSITORY}:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY/${ECR_REPOSITORY}:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          docker push $ECR_REGISTRY/${ECR_REPOSITORY}:$JOB_ID
+          image="$ECR_REGISTRY/${ECR_REPOSITORY}:$IMAGE_TAG"
+          echo "::add-mask::$image"
+          image_encrypted=$(gpg --symmetric --batch --passphrase "$SECRET" --output - <(echo "$image") | base64 -w0)
+          echo "image_encrypted=$image_encrypted" >> $GITHUB_OUTPUT
 
   deploy:
     needs: build
@@ -85,27 +94,41 @@ jobs:
             --task-definition ${{ env.CONTAINER_NAME }} \
             --query taskDefinition > task-definition.json
 
+      - name: Get image
+        id: get_image
+        shell: bash
+        run: |
+          image_deployment=$(gpg --decrypt --quiet --batch --passphrase "$SECRET" --output - <(echo "${{ needs.build.outputs.image_encrypted }}" | base64 --decode))
+          echo "::add-mask::$image_deployment"
+          echo "image_deployment=$image_deployment" >> $GITHUB_OUTPUT
+        env:
+          SECRET: ${{ secrets.PGP_SECRET_SIGNING_PASSPHRASE }}
+
       - name: Fill in the new image ID in the Amazon ECS task definition
-        id: render-task-def
+        id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: task-definition.json
           container-name: ${{ env.CONTAINER_NAME }}
-          image: ${{ needs.build.outputs.image }}
+          image: ${{ steps.get_image.outputs.image_deployment }}
 
       - name: Register new task definition
         id: register_task_def
         run: |
           new_task_def_arn=$(aws ecs register-task-definition \
-            --cli-input-json file://${{ steps.render-task-def.outputs.task-definition }} \
+            --cli-input-json file://${{ steps.task-def.outputs.task-definition }} \
             --query 'taskDefinition.taskDefinitionArn' --output text)
           echo "task_def_arn=$new_task_def_arn" >> $GITHUB_OUTPUT
 
       - name: Update AppSpec file with new Task Definition ARN and Container Name
         run: |
-          sed -i "s|<TASK_DEFINITION_ARN>|${{ steps.register_task_def.outputs.task_def_arn }}|g" appspec.yaml
-          sed -i "s|<CONTAINER_NAME>|${{ env.CONTAINER_NAME }}|g" appspec.yaml
+          sed -i 's|<TASK_DEFINITION_ARN>|${{ steps.register_task_def.outputs.task_def_arn }}|g' appspec.yaml
+          sed -i 's|<CONTAINER_NAME>|${{ env.CONTAINER_NAME }}|g' appspec.yaml
 
+      - name: Show AppSpec file
+        run: cat appspec.yaml
+
+      # --- S3 BUNDLE PARA CODEDEPLOY ---
       - name: Prepare deployment bundle (ZIP)
         run: |
           zip -r deploy_bundle.zip . -x "*.git*" "*.github*" "tests/*"
@@ -114,10 +137,10 @@ jobs:
         run: |
           aws s3 cp deploy_bundle.zip s3://${{ secrets.CODEDEPLOY_BUCKET }}/deploy_bundle.zip
 
-      - name: Create CodeDeploy deployment (S3)
+      - name: Deploy with CodeDeploy (S3)
         run: |
           aws deploy create-deployment \
-            --application-name ${{ secrets.CODEDEPLOY_APP_NAME }} \
-            --deployment-group-name ${{ secrets.CODEDEPLOY_DEPLOYMENT_GROUP }} \
+            --application-name ${{ env.CODEDEPLOY_APP }} \
+            --deployment-group-name ${{ env.CODEDEPLOY_GROUP }} \
             --s3-location bucket=${{ secrets.CODEDEPLOY_BUCKET }},key=deploy_bundle.zip,bundleType=zip \
             --region ${{ env.AWS_REGION }}
