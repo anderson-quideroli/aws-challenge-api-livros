@@ -122,17 +122,15 @@ jobs:
 
       - name: Update AppSpec file with new Task Definition ARN and Container Name
         run: |
-          sed -i "s|<TASK_DEFINITION_ARN>|${{ steps.register_task_def.outputs.task_def_arn }}|g" appspec.yaml
-          sed -i "s|<CONTAINER_NAME>|${{ env.CONTAINER_NAME }}|g" appspec.yaml
+          sed -i 's|<TASK_DEFINITION_ARN>|${{ steps.register_task_def.outputs.task_def_arn }}|g' appspec.yaml
+          sed -i 's|<CONTAINER_NAME>|${{ env.CONTAINER_NAME }}|g' appspec.yaml
           
       - name: Show AppSpec file
         run: cat appspec.yaml
 
-      - name: Deploy with CodeDeploy (Blue/Green)
+      - name: Deploy to ECS with CodeDeploy
         run: |
-          APPSPEC_CONTENT=$(cat appspec.yaml | base64 | tr -d '\n')
           aws deploy create-deployment \
-            --application-name ${{ env.CODEDEPLOY_APP }} \
-            --deployment-group-name ${{ env.CODEDEPLOY_GROUP }} \
-            --revision revisionType=AppSpecContent,appSpecContent={content=$APPSPEC_CONTENT} \
-            --deployment-config-name CodeDeployDefault.ECSAllAtOnce
+            --application-name ${{ env.CODEDEPLOY_APP_NAME }} \
+            --deployment-group-name ${{ env.CODEDEPLOY_DEPLOYMENT_GROUP }} \
+            --revision revisionType=Local,fileExistsBehavior=OVERWRITE,fileName=appspec.yaml
