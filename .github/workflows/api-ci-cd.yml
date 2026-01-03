@@ -9,11 +9,11 @@ on:
       - '**/README.md'
 
 env:
-  AWS_REGION: us-east-1                # Ajuste se necessário
-  ECR_REPOSITORY: api-livros           # Nome do repositório ECR
-  CONTAINER_NAME: api-task             # Nome do container na task definition
-  ECS_CLUSTER: api-cluster             # Nome do cluster ECS
-  ECS_SERVICE: api-service             # Nome do serviço ECS
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: api-livros
+  CONTAINER_NAME: api-task
+  ECS_CLUSTER: api-cluster
+  ECS_SERVICE: api-service
   CODEDEPLOY_APP: api-livros-codedeploy
   CODEDEPLOY_GROUP: api-livros-deployment-group
 
@@ -36,14 +36,14 @@ jobs:
 
       - name: Lint with ruff
         run: |
-          ruff check --select=E9,F63,F7,F82 --target-version=py37 .
-          ruff check --target-version=py37 .
+          ruff --format=github --select=E9,F63,F7,F82 --target-version=py37 .
+          ruff --format=github --target-version=py37 .
 
   build:
     needs: test
     runs-on: ubuntu-latest
     outputs:
-      ecr_image: ${{ steps.build-image.outputs.ecr_image }}
+      image_encrypted: ${{ steps.build-image.outputs.image_encrypted }}
     steps:
       - uses: actions/checkout@v3
 
@@ -62,11 +62,18 @@ jobs:
         id: build-image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          JOB_ID: ${{ github.run_number }}
           IMAGE_TAG: ${{ github.sha }}
+          SECRET: ${{ secrets.PGP_SECRET_SIGNING_PASSPHRASE }}
         run: |
-          docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG
-          echo "ecr_image=$ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          docker build -t $ECR_REGISTRY/${ECR_REPOSITORY}:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/${ECR_REPOSITORY}:$IMAGE_TAG $ECR_REGISTRY/${ECR_REPOSITORY}:$JOB_ID
+          docker push $ECR_REGISTRY/${ECR_REPOSITORY}:$IMAGE_TAG
+          docker push $ECR_REGISTRY/${ECR_REPOSITORY}:$JOB_ID
+          image="$ECR_REGISTRY/${ECR_REPOSITORY}:$IMAGE_TAG"
+          echo "::add-mask::$image"
+          image_encrypted=$(gpg --symmetric --batch --passphrase "$SECRET" --output - <(echo "$image") | base64 -w0)
+          echo "image_encrypted=$image_encrypted" >> $GITHUB_OUTPUT
 
   deploy:
     needs: build
@@ -81,25 +88,33 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Download current task definition
+      - name: Download task definition
         run: |
-          aws ecs describe-task-definition \
-            --task-definition ${{ env.CONTAINER_NAME }} \
-            --query taskDefinition > task-definition.json
+          aws ecs describe-task-definition --task-definition ${{ env.CONTAINER_NAME }} --query taskDefinition > task-definition.json
+
+      - name: Get image
+        id: get_image
+        shell: bash
+        run: |
+          image_deployment=$(gpg --decrypt --quiet --batch --passphrase "$SECRET" --output - <(echo "${{ needs.build.outputs.image_encrypted }}" | base64 --decode))
+          echo "::add-mask::$image_deployment"
+          echo "image_deployment=$image_deployment" >> $GITHUB_OUTPUT
+        env:
+          SECRET: ${{ secrets.PGP_SECRET_SIGNING_PASSPHRASE }}
 
       - name: Fill in the new image ID in the Amazon ECS task definition
-        id: render-task-def
+        id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: task-definition.json
           container-name: ${{ env.CONTAINER_NAME }}
-          image: ${{ needs.build.outputs.ecr_image }}
+          image: ${{ steps.get_image.outputs.image_deployment }}
 
       - name: Register new task definition
         id: register_task_def
         run: |
           new_task_def_arn=$(aws ecs register-task-definition \
-            --cli-input-json file://${{ steps.render-task-def.outputs.task-definition }} \
+            --cli-input-json file://${{ steps.task-def.outputs.task-definition }} \
             --query 'taskDefinition.taskDefinitionArn' --output text)
           echo "task_def_arn=$new_task_def_arn" >> $GITHUB_OUTPUT
 
