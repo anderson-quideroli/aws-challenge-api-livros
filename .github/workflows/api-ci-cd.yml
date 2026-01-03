@@ -128,9 +128,10 @@ jobs:
       - name: Show AppSpec file
         run: cat appspec.yaml
 
-      - name: Deploy to ECS with CodeDeploy
+      - name: Deploy with CodeDeploy (Blue/Green)
         run: |
+          APPSPEC_CONTENT=$(cat appspec.yaml | base64 | tr -d '\n')
           aws deploy create-deployment \
-            --application-name ${{ env.CODEDEPLOY_APP_NAME }} \
-            --deployment-group-name ${{ env.CODEDEPLOY_DEPLOYMENT_GROUP }} \
+            --application-name ${{ env.CODEDEPLOY_APP }} \
+            --deployment-group-name ${{ env.CODEDEPLOY_GROUP }} \
             --revision revisionType=Local,fileExistsBehavior=OVERWRITE,fileName=appspec.yaml
