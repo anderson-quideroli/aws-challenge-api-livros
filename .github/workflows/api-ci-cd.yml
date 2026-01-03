@@ -9,11 +9,11 @@ on:
       - '**/README.md'
 
 env:
-  AWS_REGION: us-east-1                # Ajuste se necessário
-  ECR_REPOSITORY: api-livros           # Nome do repositório ECR
-  CONTAINER_NAME: api-task             # Nome do container na task definition
-  ECS_CLUSTER: api-cluster             # Nome do cluster ECS
-  ECS_SERVICE: api-service             # Nome do serviço ECS
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: api-livros
+  CONTAINER_NAME: api-task
+  ECS_CLUSTER: api-cluster
+  ECS_SERVICE: api-service
   CODEDEPLOY_APP: api-livros-codedeploy
   CODEDEPLOY_GROUP: api-livros-deployment-group
 
@@ -63,6 +63,8 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
+          JOB_ID: ${{ github.run_number }}
+          SECRET: ${{ secrets.PGP_SECRET_SIGNING_PASSPHRASE }}
         run: |
           docker build -t $ECR_REGISTRY/${ECR_REPOSITORY}:$IMAGE_TAG .
           docker tag $ECR_REGISTRY/${ECR_REPOSITORY}:$IMAGE_TAG $ECR_REGISTRY/${ECR_REPOSITORY}:$JOB_ID
@@ -72,6 +74,7 @@ jobs:
           echo "::add-mask::$image"
           image_encrypted=$(gpg --symmetric --batch --passphrase "$SECRET" --output - <(echo "$image") | base64 -w0)
           echo "image_encrypted=$image_encrypted" >> $GITHUB_OUTPUT
+
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -113,7 +116,7 @@ jobs:
         id: register_task_def
         run: |
           new_task_def_arn=$(aws ecs register-task-definition \
-            --cli-input-json file://${{ steps.render-task-def.outputs.task-definition }} \
+            --cli-input-json file://${{ steps.task-def.outputs.task-definition }} \
             --query 'taskDefinition.taskDefinitionArn' --output text)
           echo "task_def_arn=$new_task_def_arn" >> $GITHUB_OUTPUT
 
