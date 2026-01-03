@@ -1,7 +1,10 @@
-from ddtrace import patch_all; patch_all()
+from ddtrace import patch_all
 from flask import Flask, jsonify, request
 
+patch_all()
+
 app = Flask(__name__)
+
 
 livros = [
     {
