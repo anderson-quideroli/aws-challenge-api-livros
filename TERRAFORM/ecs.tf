@@ -57,7 +57,7 @@ resource "aws_ecs_service" "app_service" {
   }
 
   load_balancer {
-    target_group_arn = aws_lb_target_group.target_group.arn
+    target_group_arn = aws_lb_target_group.blue.arn
     container_name   = aws_ecs_task_definition.app_task.family
     container_port   = 8080 #Porta que API Livros ira trabalhar
   }
