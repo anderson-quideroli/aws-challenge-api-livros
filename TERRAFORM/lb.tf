@@ -15,8 +15,8 @@ Criação do target group para ALB alb-app, ele ira verificar a integrida da apl
 no path /livros pois retorna os dados da API com sucesso, gerando codigo 200.
 O algoritimo utilizado sera o default round-robin.
 */
-resource "aws_lb_target_group" "target_group" {
-  name        = "target-group"
+resource "aws_lb_target_group" "blue" {
+  name        = "tg-blue"
   port        = 8080
   protocol    = "HTTP"
   target_type = "ip"
@@ -25,7 +25,7 @@ resource "aws_lb_target_group" "target_group" {
   health_check {
     path                = "/livros"
     port                = "8080"
-    interval            = "30"
+    interval            = 30
     healthy_threshold   = 3
     unhealthy_threshold = 3
     protocol            = "HTTP"
@@ -33,18 +33,40 @@ resource "aws_lb_target_group" "target_group" {
   }
 
   tags = {
-    Name = "alb-tg-app"
+    Name = "alb-tg-blue"
+  }
+}
+
+resource "aws_lb_target_group" "green" {
+  name        = "tg-green"
+  port        = 8080
+  protocol    = "HTTP"
+  target_type = "ip"
+  vpc_id      = aws_vpc.vpc.id
+
+  health_check {
+    path                = "/livros"
+    port                = "8080"
+    interval            = 30
+    healthy_threshold   = 3
+    unhealthy_threshold = 3
+    protocol            = "HTTP"
+    matcher             = "200"
+  }
+
+  tags = {
+    Name = "alb-tg-green"
   }
 }
 
 
 #Listener do ALB na porta 80
 resource "aws_lb_listener" "listener" {
-  load_balancer_arn = aws_alb.application_load_balancer.arn #  load balancer
+  load_balancer_arn = aws_alb.application_load_balancer.arn
   port              = "80"
   protocol          = "HTTP"
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.target_group.arn # target group
+    target_group_arn = aws_lb_target_group.blue.arn
   }
 }

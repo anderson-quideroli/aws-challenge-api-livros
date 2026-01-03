@@ -17,20 +17,4 @@ resource "aws_ecr_repository" "api-livros" {
   image_scanning_configuration {
     scan_on_push = true
   }
-
-  #Efetuado login no ECR e gera o token de conexão utilizado pelo docker para build a imagem.
-  provisioner "local-exec" {
-    command = "aws ecr get-login-password --region ${local.region_name} | docker login --username AWS --password-stdin ${local.account_id}.dkr.ecr.${local.region_name}.amazonaws.com"
-  }
-  #Build da imagem docker da API Livros
-  provisioner "local-exec" {
-    command     = "docker build -t ${local.account_id}.dkr.ecr.${local.region_name}.amazonaws.com/api-livros:1.0 ."
-    working_dir = "../"
-  }
-
-  #Push da imagem docker para o ECR api-livros
-  provisioner "local-exec" {
-    command     = "docker push ${local.account_id}.dkr.ecr.${local.region_name}.amazonaws.com/api-livros:1.0"
-    working_dir = "../"
-  }
 }
