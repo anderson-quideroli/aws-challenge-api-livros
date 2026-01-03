@@ -124,6 +124,9 @@ jobs:
         run: |
           sed -i "s|<TASK_DEFINITION_ARN>|${{ steps.register_task_def.outputs.task_def_arn }}|g" appspec.yaml
           sed -i "s|<CONTAINER_NAME>|${{ env.CONTAINER_NAME }}|g" appspec.yaml
+          
+      - name: Show AppSpec file
+        run: cat appspec.yaml
 
       - name: Deploy with CodeDeploy (Blue/Green)
         run: |
