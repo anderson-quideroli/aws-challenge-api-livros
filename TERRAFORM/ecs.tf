@@ -18,6 +18,7 @@ resource "aws_ecs_cluster" "ecs_cluster" {
 Criação da tarefa a ser usada pelo serviço do cluster ECS
 Essa tarefa busca a imagem do ECR da API Livros na versão 1.0.
 */
+
 resource "aws_ecs_task_definition" "app_task" {
   family                   = "api-task"
   container_definitions    = <<DEFINITION
@@ -38,17 +39,33 @@ resource "aws_ecs_task_definition" "app_task" {
       { "name": "DD_AGENT_HOST", "value": "localhost" },
       { "name": "DD_ENV", "value": "dev" },
       { "name": "DD_SERVICE", "value": "api-livros" },
-      { "name": "DD_VERSION", "value": "1.0" }
+      { "name": "DD_VERSION", "value": "1.0.0" },
+      { "name": "DD_LOGS_INJECTION", "value": "true" }
+    ],
+    "dockerLabels": {
+      "com.datadoghq.tags.env": "dev",
+      "com.datadoghq.tags.service": "api-livros",
+      "com.datadoghq.tags.version": "1.0.0"
+    },
+    "entryPoint": [
+      "sh",
+      "-c",
+      "ddtrace-run python ./api_livros.py"
     ]
   },
   {
     "name": "datadog-agent",
     "image": "public.ecr.aws/datadog/agent:latest",
     "essential": false,
+    "portMappings": [
+      { "containerPort": 8126, "hostPort": 8126, "protocol": "tcp" }
+    ],
+    "memory": 512,
+    "cpu": 256,
     "environment": [
-      { "name": "DD_API_KEY", "value": "13e4da727ff42f591309b74191e5170a" },
-      { "name": "DD_SITE",    "value": "us5.datadoghq.com" },
-      { "name": "ECS_FARGATE", "value": "true" }
+      { "name": "DD_API_KEY",   "value": "<SUA_API_KEY>" },
+      { "name": "DD_SITE",      "value": "us5.datadoghq.com" },
+      { "name": "ECS_FARGATE",  "value": "true" }
     ],
     "logConfiguration": {
       "logDriver": "awslogs",
@@ -63,8 +80,8 @@ resource "aws_ecs_task_definition" "app_task" {
 DEFINITION
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
-  memory                   = 512
-  cpu                      = 256
+  memory                   = 1024 # 512 (app) + 256 (agent)
+  cpu                      = 512 # 256 (app) + 128 (agent)
   execution_role_arn       = aws_iam_role.iam_role_ecs_task_execution.arn
 }
 
