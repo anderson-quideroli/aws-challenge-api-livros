@@ -1,3 +1,13 @@
+resource "aws_iam_policy" "datadog_agent_policy" {
+  name   = "datadog-agent-policy"
+  policy = file("datadog-agent-policy.json")
+}
+
+resource "aws_iam_role_policy_attachment" "datadog_agent_policy" {
+  role       = aws_iam_role.iam_role_ecs_task_execution.name
+  policy_arn = aws_iam_policy.datadog_agent_policy.arn
+}
+
 /*
 Role reponsavel por atribui permissão para a tarefa do ECS ter acesso no ECR para download da imagem, solicitar token de acesso e
 na geração e envio de logs.  

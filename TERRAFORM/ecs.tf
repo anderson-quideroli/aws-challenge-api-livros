@@ -1,3 +1,8 @@
+resource "aws_cloudwatch_log_group" "datadog_agent" {
+  name              = "/ecs/datadog-agent"
+  retention_in_days = 7
+}
+
 #Criação do cluster ECS
 resource "aws_ecs_cluster" "ecs_cluster" {
   name = "api-cluster"
