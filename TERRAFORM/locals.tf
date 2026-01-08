@@ -1,12 +1,3 @@
-#ID da Conta atual que está sendo criado os recursos.
-locals {
-  account_id = data.aws_caller_identity.current.account_id
-}
-
-#Região atual que está sendo criado os recursos.
-locals {
-  region_name = data.aws_region.current.name
-}
 
 #Conjunto de tags que será padrão nos recursos criados.
 locals {
